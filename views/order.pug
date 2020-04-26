@@ -20,13 +20,15 @@ div(class='wrap')
                         type='text',
                         id='username',
                         placeholder='Introduceți numele vostru',
+                        required
                         )
                   div(class='form-control')
                     label(for='phone') Telefon
                     input(
                         type='text',
                         id='phone',
-                        placeholder='+380505555555',
+                        placeholder='+373612345678',
+                        required
                         )
                   div(class='form-control')
                     label(for='email') Email
@@ -34,12 +36,14 @@ div(class='wrap')
                         type='text',
                         id='email',
                         placeholder='mail@example.com',
+                        required
                         )
                   div(class='form-control')
                     label(for='address') Adresă
                     textarea(
                         id='address',
                         placeholder='Unde vă aflați',
+                        required
                         )
                   div(class='form-control')
                     label(for='rule') 
@@ -47,6 +51,7 @@ div(class='wrap')
                           type='checkbox',
                           id='rule',
                           value='1'
+                          required
                           ) 
                       span  Termeni și condiții
                   div(class='form-control text-right')
