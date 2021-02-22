@@ -1,12 +1,13 @@
 let express = require('express');
 let app = express();
 let paypal = require('paypal-rest-sdk');
-const keys = require('./keys')
+let cookieParser = require('cookie-parser');
+let admin = require('./admin');
 /**
  * Paypal
  */
 paypal.configure({
-  'mode': 'sandbox', //sandbox or live
+  'mode': 'sandbox', //
   'client_id': 'AT76aFxLYgvJ1RJ2UyK9lKh1mSPrILNpdE8jhcM5HL40hfGVf2lSgS1gkaoiVjZgYY1h_Di7idzmFXWt',
   'client_secret': 'ELLJTQmVxHGJr022oUDTrgwgxM3cLT23msGS7bMlifV55uzqhjFWrdM5JG_sBXSh7B5MoGi_IMY6VdlT'
 });
@@ -14,21 +15,24 @@ var bodyParser = require('body-parser')
 app.use( bodyParser.json() );   
 
 /**
- * public - имя папки где хранится статика
+ * 
  */
+
 app.use(express.static('public'));
 /**
- *  задаем шаблонизатор
+ *  
  */
 app.set('view engine', 'pug');
 /**
-* Подключаем mysql модуль
+*  mysql 
 */
 let mysql = require('mysql');
 /**
-* настраиваем модуль
+* 
 */
 app.use(express.json());
+app.use(express.urlencoded());
+app.use(cookieParser())
 
 const nodemailer = require('nodemailer');
 
@@ -46,11 +50,17 @@ app.listen(3000, function () {
   console.log('node express work on 3000');
 });
 
-// app.get("/",  function (req, res) {
-//   res.render("navv")
-//   });
+
  
+app.use(function (req, res, next) {
  
+  if (req.originalUrl == '/admin' || req.originalUrl == '/admin-order'){
+     admin(req, res, con, next)
+  }
+  else{
+    next();
+  }
+})
 
 app.get('/', function (req, res) {
   
@@ -125,7 +135,7 @@ app.get('/order', function (req, res) {
 
 
 app.post('/get-category-list', function (req, res) {
-  // console.log(req.body);
+
   con.query('SELECT id, category FROM category', function (error, result, fields) {
     if (error) throw error;
     console.log(result)
@@ -172,37 +182,82 @@ app.post('/finish-order', function (req, res) {
 });
 
 
+app.get('/admin-order', function (req, res) {
+  
+      con.query(`SELECT 
+      shop_order.id as id,
+      shop_order.user_id as user_id,
+        shop_order.goods_id as goods_id,
+        shop_order.goods_cost as goods_cost,
+        shop_order.goods_amount as goods_amount,
+        shop_order.total as total,
+        from_unixtime(date,"%Y-%m-%d %h:%m") as human_date,
+        user_info.user_name as user,
+        user_info.user_phone as phone,
+        user_info.address as address
+    FROM 
+      shop_order
+    LEFT JOIN	
+      user_info
+    ON shop_order.user_id = user_info.id ORDER BY id DESC`, function (error, result, fields) {
+          if (error) throw error;
+          console.log(result);
+          res.render('admin-order', { order: JSON.parse(JSON.stringify(result)) });
+        });
+    });
+  
+
 
 app.get('/admin', function (req, res) {
-  res.render('admin', {});
+      res.render('admin',{});
 });
 
-app.get('/admin-order', function (req, res) {
-  con.query(`SELECT 
-	shop_order.id as id,
-	shop_order.user_id as user_id,
-    shop_order.goods_id as goods_id,
-    shop_order.goods_cost as goods_cost,
-    shop_order.goods_amount as goods_amount,
-    shop_order.total as total,
-    from_unixtime(date,"%Y-%m-%d %h:%m") as human_date,
-    user_info.user_name as user,
-    user_info.user_phone as phone,
-    user_info.address as address
-FROM 
-	shop_order
-LEFT JOIN	
-	user_info
-ON shop_order.user_id = user_info.id ORDER BY id DESC`, function (error, result, fields) {
-      if (error) throw error;
-      console.log(result);
-      res.render('admin-order', { order: JSON.parse(JSON.stringify(result)) });
-    });
+app.get('/login', function (req, res) {
+  res.render('login', {});
 });
+app.post('/login', function (req, res) {
+   console.log('===============================')
+  console.log(req.body);
+  console.log(req.body.login);
+  console.log(req.body.password );
+  console.log('===============================')
+  con.query('SELECT * FROM user WHERE login="' + req.body.login + '" and password="' + req.body.password + '"',
+        function (error, result) {
+          if (error) reject(error);
+          console.log(result);
+          console.log(result.length);
+          if (result.length == 0){
+            console.log('error user not found'); 
+            res.redirect('/login');
+          }else{
+            result = JSON.parse(JSON.stringify(result));
+            let hash = makeHash(32);
+             res.cookie('hash', hash)
+             res.cookie('id', result[0]['id'])
+             // write hash to db
+             sql = "UPDATE  user SET hash='"+hash+"'  WHERE id=" + result[0]['id'];
+              con.query(sql, function (error, resultQuery) {
+                if (error) throw error;
+                
+              });
+              res.redirect('/admin'); 
+          };
+         
+});
+});
+
+function makeHash(length) {
+  var result = '';
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
 
 function saveOrder(data, result) {
-  // data - информация о пользователе
-  // result - сведения о товаре
+  
   let sql;
   sql = "INSERT INTO user_info (user_name, user_phone, user_email, address) VALUES ('" + data.username + "','" + data.phone + "','" + data.email + "','" + data.address + "')";
   con.query(sql, function (error, resultQuery) {
@@ -225,51 +280,39 @@ function saveOrder(data, result) {
 }
 
 async function sendMail(data, result) {
-  let res = '<h2>Order in lite shop</h2>';
+  let res = '<h2>Comandă ZubDental</h2>';
   let total = 0;
   for (let i = 0; i < result.length; i++) {
-    res += `<p>${result[i]['name']} - ${data.key[result[i]['id']]} - ${result[i]['cost'] * data.key[result[i]['id']]} lei</p>`;
+    res += `<p>${result[i]['name']} - ${data.key[result[i]['id']]} - ${result[i]['cost'] * data.key[result[i]['id']]} USD</p>`;
     total += result[i]['cost'] * data.key[result[i]['id']];
   }
   
 
   console.log(res);
   res += '<hr>';
-  res += `Total ${total} lei`;
+  res += `Total ${total} USD`;
   res += `<hr>Phone: ${data.phone}`;
   res += `<hr>Username: ${data.username}`;
   res += `<hr>Address: ${data.address}`;
   res += `<hr>Email: ${data.email}`;
   
 
-  let testAccount = await nodemailer.createTestAccount();
-
-  // let transporter = nodemailer.createTransport({
-  //   host: "smtp.ethereal.email",
-  //   port: 587,
-  //   secure: false, // true for 465, false for other ports
-  //   auth: {
-  //     user: testAccount.user, // generated ethereal user
-  //     pass: testAccount.pass // generated ethereal password
-      
-  //   }
-
     let transporter = nodemailer.createTransport({
       service: 'gmail',
       
       secure: false, // true for 465, false for other ports
       auth: {
-        user: 'botnarinikudaniela@gmail.com', // generated ethereal user
-        pass: 'Niku@MDA97' // generated ethereal password
+        user: 'nodejszub@gmail.com', // generated ethereal user
+        pass: 'mdhacker55' // generated ethereal password
         
       }
     
   });
 
   let mailOption = {
-    from: '<botnariniku@gmail.com>',
-    to: "botnariniku@gmail.com," + data.email,
-    subject: "Lite shop order",
+    from: '<nodejszub@gmail.com>',
+    to: "nodejszub@gmail.com," + data.email,
+    subject: "Comandă ZubDental",
     text: 'Hello world',
     html: res
   };
@@ -280,6 +323,10 @@ async function sendMail(data, result) {
   return true;
   
 };
+
+
+
+
 
 
 app.post('/pay', function(  result, res, data)  {
@@ -329,9 +376,11 @@ paypal.payment.create(create_payment_json, function (error, payment) {
   }
 });
 
-});
+
 
 app.get('/success', (req, res) => {
+  
+
   const payerId = req.query.PayerID;
   const paymentId = req.query.paymentId;
 
@@ -340,7 +389,7 @@ app.get('/success', (req, res) => {
     "transactions": [{
         "amount": {
             "currency": "USD",
-            "total": "25.00"
+            "total": row.total
         }
     }]
   };
@@ -356,5 +405,6 @@ app.get('/success', (req, res) => {
 });
 });
 
+});
 });
 });

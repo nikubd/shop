@@ -7,7 +7,7 @@ document.querySelector('#lite-shop-order').onsubmit = function (event) {
     
 
     if (!document.querySelector('#rule').checked) {
-        //с правилами не согласен
+        //
         Swal.fire({
             title: 'Warning',
             text: 'Read and accept the rule',
@@ -18,7 +18,7 @@ document.querySelector('#lite-shop-order').onsubmit = function (event) {
     }
 
     if (username == '' || phone == '' || email == '' || address == '') {
-        //не заполнены поля
+        //
         Swal.fire({
             title: 'Warning',
             text: 'Fill all fields',

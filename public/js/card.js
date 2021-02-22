@@ -47,11 +47,11 @@ function showCart(data) {
     out += `<tr><td><i class="far fa-minus-square cart-minus" data-goods_id="${key}"></i></td>`;
     out += `<td>${cart[key]}</td>`;
     out += `<td><i class="far fa-plus-square cart-plus" data-goods_id="${key}"></i></td>`;
-    out += `<td>${formatPrice(data[key]['cost'] * cart[key])} lei </td>`
+    out += `<td>${formatPrice(data[key]['cost'] * cart[key])} USD </td>`
     out += '</tr>';
     total += cart[key] * data[key]['cost'];
   }
-  out += `<tr><td colspan="3">Total: </td><td>${formatPrice(total)}lei</td></tr>`;
+  out += `<tr><td colspan="3">Total: </td><td>${formatPrice(total)}USD</td></tr>`;
   out += '</tbody></table>';
   document.querySelector('#cart-nav').innerHTML = out;
   document.querySelectorAll('.cart-minus').forEach(function (element) {
